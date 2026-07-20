@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>葳格高中實習課程 - 材料採購統整系統</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif; background: #f5f5f5; color: #333; }
+
+        .header { background: linear-gradient(135deg, #1a365d, #2c5282); color: white; padding: 20px; text-align: center; }
+        .header h1 { font-size: 1.6em; margin-bottom: 5px; }
+        .header p { font-size: 0.9em; opacity: 0.85; }
+
+        .tabs { display: flex; justify-content: center; gap: 8px; padding: 15px; background: #e2e8f0; }
+        .tab-btn { padding: 10px 24px; border: 2px solid #a0aec0; background: white; color: #4a5568; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.2s; }
+        .tab-btn:hover { background: #edf2f7; }
+        .tab-btn.active { background: #2c5282; color: white; border-color: #2c5282; }
+
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; }
+        .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 25px; margin-bottom: 20px; }
+        .card h2 { color: #2c5282; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.2em; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; color: #4a5568; font-size: 0.9em; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.95em; transition: border 0.2s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4299e1; box-shadow: 0 0 0 2px rgba(66,153,225,0.2); }
+
+        .material-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .material-table th { background: #2c5282; color: white; padding: 10px 8px; font-size: 0.85em; }
+        .material-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+        .material-table tr:hover { background: #f7fafc; }
+        .material-table input { width: 100%; padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; font-size: 0.9em; }
+        .material-table input:focus { outline: none; border-color: #4299e1; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: bold; transition: all 0.2s; }
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-primary:hover { background: #3182ce; }
+        .btn-danger { background: #fc8181; color: white; }
+        .btn-danger:hover { background: #f56565; }
+        .btn-success { background: #48bb78; color: white; }
+        .btn-success:hover { background: #38a169; }
+        .btn-secondary { background: #a0aec0; color: white; }
+        .btn-secondary:hover { background: #718096; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+
+        .saved-entries { margin-top: 20px; }
+        .entry-card { background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 12px; position: relative; }
+        .entry-card .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .entry-card .entry-title { font-weight: bold; color: #2c5282; font-size: 1.05em; }
+        .entry-card .entry-meta { font-size: 0.85em; color: #718096; }
+        .entry-card .entry-items { font-size: 0.9em; color: #4a5568; line-height: 1.8; }
+        .entry-card .btn-sm { padding: 5px 12px; font-size: 0.8em; }
+
+        /* 採購單彙整表樣式 */
+        .purchase-order { border: 2px solid #1a365d; }
+        .po-header { text-align: center; padding: 15px; border-bottom: 2px solid #1a365d; }
+        .po-header h2 { font-size: 1.4em; color: #1a365d; border: none; margin: 0; padding: 0; }
+        .po-info { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 2px solid #1a365d; }
+        .po-info div { padding: 8px 15px; border-right: 1px solid #1a365d; text-align: center; }
+        .po-info div:last-child { border-right: none; }
+        .po-info .label { font-weight: bold; background: #edf2f7; font-size: 0.85em; }
+        .po-info .value { font-size: 1em; }
+
+        .po-course { display: grid; grid-template-columns: 1fr 2fr; border-bottom: 2px solid #1a365d; }
+        .po-course .label { padding: 8px 15px; font-weight: bold; background: #edf2f7; text-align: center; font-size: 0.9em; border-right: 1px solid #1a365d; }
+        .po-course .value { padding: 8px 15px; font-size: 0.9em; }
+
+        .po-table { width: 100%; border-collapse: collapse; }
+        .po-table th { background: #edf2f7; padding: 10px 8px; font-size: 0.85em; border: 1px solid #1a365d; text-align: center; }
+        .po-table td { padding: 8px; border: 1px solid #1a365d; font-size: 0.9em; text-align: center; }
+        .po-table td:nth-child(2) { text-align: left; }
+        .po-table td:nth-child(6) { text-align: left; }
+        .po-table tr:hover { background: #f7fafc; }
+        .po-table .subtotal-row { background: #edf2f7; font-weight: bold; }
+
+        .print-section { display: none; }
+        .print-section.active { display: block; }
+
+        .hidden { display: none; }
+
+        .no-data { text-align: center; padding: 40px; color: #a0aec0; font-size: 1.1em; }
+
+        @media print {
+            body { background: white; }
+            .header, .tabs, .no-print { display: none !important; }
+            .print-section { display: block !important; }
+            .card { box-shadow: none; border: none; }
+        }
+
+        .summary-group { margin-bottom: 20px; }
+        .summary-group-title { background: #2c5282; color: white; padding: 10px 15px; border-radius: 6px 6px 0 0; font-weight: bold; }
+        .summary-group table { width: 100%; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #a0aec0; }
+        .empty-state .icon { font-size: 3em; margin-bottom: 15px; }
+
+        .team-tag { display: inline-block; background: #e2f0fb; color: #2c5282; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>葳格高級中學實習課程材料採購統整系統</h1>
+        <p>各組輸入需求 → 自動彙整採購單</p>
+    </div>
+
+    <div class="tabs no-print">
+        <button class="tab-btn active" onclick="switchTab('input')">📋 各組輸入</button>
+        <button class="tab-btn" onclick="switchTab('summary')">📊 彙整總表</button>
+        <button class="tab-btn" onclick="switchTab('print')">🖨️ 列印採購單</button>
+    </div>
+
+    <div class="container">
+        <!-- ====== 各組輸入區 ====== -->
+        <div id="tab-input" class="print-section active">
+            <div class="card no-print">
+                <h2>📋 新增材料需求</h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="entry-date">
+                    </div>
+                    <div class="form-group">
+                        <label>星期</label>
+                        <select id="entry-weekday">
+                            <option value="一">一</option>
+                            <option value="二">二</option>
+                            <option value="三">三</option>
+                            <option value="四">四</option>
+                            <option value="五">五</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>班級</label>
+                        <input type="text" id="entry-class" placeholder="例：餐二甲" value="餐二甲">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>組別</label>
+                        <select id="entry-team">
+                            <option value="第一組">第一組</option>
+                            <option value="第二組">第二組</option>
+                            <option value="第三組">第三組</option>
+                            <option value="第四組">第四組</option>
+                            <option value="第五組" selected>第五組</option>
+                            <option value="第六組">第六組</option>
+                            <option value="第七組">第七組</option>
+                            <option value="第八組">第八組</option>
+                            <option value="第九組">第九組</option>
+                            <option value="第十組">第十組</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>課程名稱</label>
+                        <input type="text" id="entry-course" placeholder="例：烘焙實務" value="烘焙實務">
+                    </div>
+                    <div class="form-group">
+                        <label>產品名稱 / 課程內容</label>
+                        <input type="text" id="entry-product" placeholder="例：鳳梨酥、ESP產品試作">
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 20px;">材料清單</h2>
+                <table class="material-table" id="material-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">編號</th>
+                            <th style="width:25%">材料名稱</th>
+                            <th style="width:15%">規格</th>
+                            <th style="width:12%">單位</th>
+                            <th style="width:12%">數量</th>
+                            <th style="width:20%">備註</th>
+                            <th style="width:60px">刪除</th>
+                        </tr>
+                    </thead>
+                    <tbody id="material-body"></tbody>
+                </table>
+                <button class="btn btn-secondary" onclick="addMaterialRow()">＋ 新增材料</button>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="saveEntry()">💾 儲存本組需求</button>
+                    <button class="btn btn-danger" onclick="clearForm()">🗑️ 清除表單</button>
+                    <button class="btn btn-success" onclick="importSample()">📥 匯入範例資料</button>
+                </div>
+            </div>
+
+            <!-- 已儲存的各組資料 -->
+            <div class="card">
+                <h2>📁 已儲存的各組需求 (<span id="entry-count">0</span> 組)</h2>
+                <div id="saved-entries" class="saved-entries">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>尚無資料，請輸入各組需求或匯入範例資料</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 彙整總表區 ====== -->
+        <div id="tab-summary" class="print-section">
+            <div class="card">
+                <h2>📊 材料需求彙整表</h2>
+                <div id="summary-content">
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <p>尚無資料可彙整</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====== 列印採購單區 ====== -->
+        <div id="tab-print" class="print-section">
+            <div class="card no-print" style="margin-bottom: 15px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>列印日期</label>
+                        <input type="date" id="print-date">
+                    </div>
+                    <div class="form-group">
+                        <label>星期</label>
+                        <select id="print-weekday">
+                            <option value="一">一</option>
+                            <option value="二">二</option>
+                            <option value="三">三</option>
+                            <option value="四">四</option>
+                            <option value="五">五</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:flex; align-items:flex-end;">
+                        <button class="btn btn-primary" onclick="window.print()">🖨️ 列印採購單</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card purchase-order" id="print-area">
+                <div class="po-header">
+                    <h2>葳格高級中學實習課程材料採購單</h2>
+                </div>
+                <div class="po-info">
+                    <div><span class="label">班級</span><br><span class="value" id="po-class">餐二甲</span></div>
+                    <div><span class="label">日期</span><br><span class="value" id="po-date">-</span></div>
+                    <div><span class="label">星期</span><br><span class="value" id="po-weekday">-</span></div>
+                </div>
+                <div class="po-course">
+                    <div class="label">課程名稱</div>
+                    <div class="value" id="po-course-name">烘焙實務</div>
+                </div>
+                <div class="po-course">
+                    <div class="label">課程內容</div>
+                    <div class="value" id="po-course-content">-</div>
+                </div>
+                <table class="po-table">
+                    <thead>
+                        <tr>
+                            <th style="width:50px">編號</th>
+                            <th>材料名稱</th>
+                            <th style="width:80px">規格</th>
+                            <th style="width:70px">單位</th>
+                            <th style="width:70px">數量</th>
+                            <th style="width:120px">備註（來源組別）</th>
+                        </tr>
+                    </thead>
+                    <tbody id="po-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let entries = JSON.parse(localStorage.getItem('materialEntries') || '[]');
+        let materialCounter = 0;
+
+        // ====== 初始化 ======
+        document.addEventListener('DOMContentLoaded', () => {
+            addMaterialRow();
+            addMaterialRow();
+            addMaterialRow();
+            renderSavedEntries();
+            setDefaultDate();
+        });
+
+        function setDefaultDate() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('entry-date').value = `${yyyy}-${mm}-${dd}`;
+            document.getElementById('print-date').value = `${yyyy}-${mm}-${dd}`;
+            const weekdays = ['日','一','二','三','四','五','六'];
+            const dayIdx = today.getDay();
+            if (dayIdx >= 1 && dayIdx <= 5) {
+                document.getElementById('entry-weekday').value = weekdays[dayIdx];
+                document.getElementById('print-weekday').value = weekdays[dayIdx];
+            }
+        }
+
+        // ====== Tab 切換 ======
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.print-section').forEach(s => s.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            if (tab === 'summary') renderSummary();
+            if (tab === 'print') renderPrintView();
+        }
+
+        // ====== 材料表格操作 ======
+        function addMaterialRow() {
+            materialCounter++;
+            const tbody = document.getElementById('material-body');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align:center; color:#718096;">${materialCounter}</td>
+                <td><input type="text" placeholder="品名" class="m-name"></td>
+                <td><input type="text" placeholder="例：250g" class="m-spec"></td>
+                <td>
+                    <select class="m-unit">
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="個">個</option>
+                        <option value="顆">顆</option>
+                        <option value="條">條</option>
+                        <option value="瓶">瓶</option>
+                        <option value="包">包</option>
+                        <option value="盒">盒</option>
+                        <option value="袋">袋</option>
+                        <option value="罐">罐</option>
+                        <option value="小瓶">小瓶</option>
+                        <option value="小粒">小粒</option>
+                        <option value="粒">粒</option>
+                    </select>
+                </td>
+                <td><input type="number" min="0" placeholder="0" class="m-qty"></td>
+                <td><input type="text" placeholder="選填" class="m-note"></td>
+                <td style="text-align:center"><button class="btn btn-danger btn-sm" onclick="removeRow(this)">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function removeRow(btn) {
+            const tbody = document.getElementById('material-body');
+            if (tbody.children.length > 1) {
+                btn.closest('tr').remove();
+                renumberRows();
+            }
+        }
+
+        function renumberRows() {
+            const rows = document.querySelectorAll('#material-body tr');
+            rows.forEach((row, i) => { row.cells[0].textContent = i + 1; });
+            materialCounter = rows.length;
+        }
+
+        // ====== 儲存 ======
+        function saveEntry() {
+            const date = document.getElementById('entry-date').value;
+            const weekday = document.getElementById('entry-weekday').value;
+            const cls = document.getElementById('entry-class').value.trim();
+            const team = document.getElementById('entry-team').value;
+            const course = document.getElementById('entry-course').value.trim();
+            const product = document.getElementById('entry-product').value.trim();
+
+            if (!date) { alert('請選擇日期'); return; }
+            if (!cls) { alert('請輸入班級'); return; }
+
+            const materials = [];
+            const rows = document.querySelectorAll('#material-body tr');
+            rows.forEach(row => {
+                const name = row.querySelector('.m-name').value.trim();
+                const spec = row.querySelector('.m-spec').value.trim();
+                const unit = row.querySelector('.m-unit').value;
+                const qty = parseFloat(row.querySelector('.m-qty').value) || 0;
+                const note = row.querySelector('.m-note').value.trim();
+                if (name && qty > 0) {
+                    materials.push({ name, spec, unit, qty, note });
+                }
+            });
+
+            if (materials.length === 0) { alert('請至少輸入一項材料'); return; }
+
+            const entry = {
+                id: Date.now(),
+                date, weekday, class: cls, team, course, product, materials,
+                createdAt: new Date().toLocaleString('zh-TW')
+            };
+
+            entries.push(entry);
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+            clearForm();
+            alert(`✅ ${team} 的需求已儲存！`);
+        }
+
+        function clearForm() {
+            document.getElementById('entry-product').value = '';
+            document.getElementById('entry-note') && (document.getElementById('entry-note').value = '');
+            const tbody = document.getElementById('material-body');
+            tbody.innerHTML = '';
+            materialCounter = 0;
+            addMaterialRow();
+            addMaterialRow();
+            addMaterialRow();
+        }
+
+        function deleteEntry(id) {
+            if (!confirm('確定要刪除此筆資料？')) return;
+            entries = entries.filter(e => e.id !== id);
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+        }
+
+        function renderSavedEntries() {
+            const container = document.getElementById('saved-entries');
+            document.getElementById('entry-count').textContent = entries.length;
+
+            if (entries.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>尚無資料，請輸入各組需求或匯入範例資料</p></div>`;
+                return;
+            }
+
+            container.innerHTML = entries.map(e => `
+                <div class="entry-card">
+                    <div class="entry-header">
+                        <span>
+                            <span class="entry-title">${e.team}</span>
+                            <span class="team-tag">${e.class}</span>
+                        </span>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEntry(${e.id})">刪除</button>
+                    </div>
+                    <div class="entry-meta">
+                        日期：${e.date} (${e.weekday}) ｜ ${e.course || ''} ｜ 產品：${e.product || '-'}
+                    </div>
+                    <div class="entry-items">
+                        ${e.materials.map(m => `${m.name} ${m.spec || ''} ${m.qty}${m.unit}${m.note ? ' (' + m.note + ')' : ''}`).join('、')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ====== 彙整總表 ======
+        function renderSummary() {
+            const container = document.getElementById('summary-content');
+            if (entries.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>尚無資料可彙整</p></div>`;
+                return;
+            }
+
+            // 按日期分組
+            const grouped = {};
+            entries.forEach(e => {
+                if (!grouped[e.date]) grouped[e.date] = [];
+                grouped[e.date].push(e);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(date => {
+                const dayEntries = grouped[date];
+                html += `<div class="summary-group">
+                    <div class="summary-group-title">📅 ${date} (${dayEntries[0].weekday})</div>
+                    <table class="material-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">編號</th>
+                                <th>材料名稱</th>
+                                <th style="width:100px">規格</th>
+                                <th style="width:70px">單位</th>
+                                <th style="width:80px">總數量</th>
+                                <th style="width:150px">需求組別</th>
+                                <th style="width:120px">備註</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                // 彙整相同材料
+                const materialMap = {};
+                dayEntries.forEach(e => {
+                    e.materials.forEach(m => {
+                        const key = `${m.name}|${m.spec}|${m.unit}`;
+                        if (!materialMap[key]) {
+                            materialMap[key] = { name: m.name, spec: m.spec, unit: m.unit, totalQty: 0, teams: [], notes: [] };
+                        }
+                        materialMap[key].totalQty += m.qty;
+                        if (!materialMap[key].teams.includes(e.team)) materialMap[key].teams.push(e.team);
+                        if (m.note && !materialMap[key].notes.includes(m.note)) materialMap[key].notes.push(m.note);
+                    });
+                });
+
+                let idx = 0;
+                Object.values(materialMap).sort((a, b) => a.name.localeCompare(b.name, 'zh-TW')).forEach(m => {
+                    idx++;
+                    html += `<tr>
+                        <td>${idx}</td>
+                        <td style="text-align:left; font-weight:bold;">${m.name}</td>
+                        <td>${m.spec || '-'}</td>
+                        <td>${m.unit}</td>
+                        <td style="font-weight:bold; color:#2c5282;">${m.totalQty}</td>
+                        <td>${m.teams.map(t => '<span class="team-tag">' + t + '</span>').join(' ')}</td>
+                        <td style="text-align:left; font-size:0.85em;">${m.notes.join('、') || '-'}</td>
+                    </tr>`;
+                });
+
+                html += `</tbody></table></div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ====== 列印採購單 ======
+        function renderPrintView() {
+            const printDate = document.getElementById('print-date').value || new Date().toISOString().slice(0, 10);
+            const printWeekday = document.getElementById('print-weekday').value;
+
+            document.getElementById('po-date').textContent = printDate;
+            document.getElementById('po-weekday').textContent = printWeekday;
+
+            // 取第一筆的班級和課程作為代表
+            if (entries.length > 0) {
+                const first = entries[0];
+                document.getElementById('po-class').textContent = first.class;
+                document.getElementById('po-course-name').textContent = first.course || '烘焙實務';
+                // 收集所有產品名稱
+                const products = [...new Set(entries.map(e => e.product).filter(Boolean))];
+                document.getElementById('po-course-content').textContent = products.join('、') || '-';
+            }
+
+            // 彙整所有材料（跨日期）
+            const materialMap = {};
+            entries.forEach(e => {
+                e.materials.forEach(m => {
+                    const key = `${m.name}|${m.spec}|${m.unit}`;
+                    if (!materialMap[key]) {
+                        materialMap[key] = { name: m.name, spec: m.spec, unit: m.unit, totalQty: 0, notes: [], teams: [] };
+                    }
+                    materialMap[key].totalQty += m.qty;
+                    if (m.note && !materialMap[key].notes.includes(m.note)) materialMap[key].notes.push(m.note);
+                    if (!materialMap[key].teams.includes(e.team)) materialMap[key].teams.push(e.team);
+                });
+            });
+
+            const tbody = document.getElementById('po-tbody');
+            if (Object.keys(materialMap).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="no-data">尚無材料資料</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let idx = 0;
+            Object.values(materialMap).sort((a, b) => a.name.localeCompare(b.name, 'zh-TW')).forEach(m => {
+                idx++;
+                const teamStr = m.teams.join('、');
+                const noteStr = [m.notes.join(' '), teamStr ? '來自：' + teamStr : ''].filter(Boolean).join('｜');
+                html += `<tr>
+                    <td>${idx}</td>
+                    <td style="text-align:left; font-weight:bold;">${m.name}</td>
+                    <td>${m.spec || '-'}</td>
+                    <td>${m.unit}</td>
+                    <td style="font-weight:bold; color:#2c5282;">${m.totalQty}</td>
+                    <td style="text-align:left; font-size:0.85em;">${noteStr}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // ====== 匯入範例資料 ======
+        function importSample() {
+            if (entries.length > 0) {
+                if (!confirm('目前已有資料，匯入範例將追加到現有資料中。是否繼續？')) return;
+            }
+
+            const sampleEntries = [
+                {
+                    id: 1001, date: '2025-03-10', weekday: '二', class: '餐二甲', team: '第一組',
+                    course: '烘焙實務', product: 'ESP產品試作',
+                    materials: [
+                        { name: '無鹽奶油', spec: '塊', unit: '個', qty: 3, note: '' },
+                        { name: '檸檬', spec: '', unit: '個', qty: 4, note: '' },
+                        { name: '正香軒鈕扣牛奶巧克力', spec: '', unit: 'g', qty: 300, note: '' },
+                        { name: '覆盆子果醬', spec: '', unit: 'g', qty: 120, note: '' },
+                        { name: '消化餅乾', spec: '', unit: 'g', qty: 550, note: '' },
+                        { name: '動物性鮮奶油', spec: '', unit: 'g', qty: 3500, note: '' },
+                        { name: '冷凍藍莓', spec: '', unit: 'g', qty: 300, note: '' },
+                        { name: '新鮮藍莓', spec: '', unit: 'g', qty: 500, note: '' },
+                    ],
+                    createdAt: '2025/3/10 08:00:00'
+                },
+                {
+                    id: 1002, date: '2025-03-10', weekday: '二', class: '餐二甲', team: '第二組',
+                    course: '烘焙實務', product: 'ESP產品試作',
+                    materials: [
+                        { name: '草莓粉', spec: '', unit: 'g', qty: 20, note: '迷你包' },
+                        { name: '卡魯哇咖啡酒', spec: '', unit: 'g', qty: 50, note: '' },
+                        { name: '馬斯卡彭起司', spec: '', unit: 'g', qty: 1000, note: '' },
+                        { name: '草莓果醬', spec: '小瓶', unit: '瓶', qty: 1, note: '' },
+                        { name: '南瓜', spec: '小粒', unit: '粒', qty: 1, note: '' },
+                        { name: '保久乳', spec: '', unit: 'g', qty: 380, note: '' },
+                    ],
+                    createdAt: '2025/3/10 08:05:00'
+                },
+                {
+                    id: 1003, date: '2025-03-16', weekday: '一', class: '餐二甲', team: '第五組',
+                    course: '烘焙實務', product: '鳳梨酥',
+                    materials: [
+                        { name: '土鳳梨餡', spec: '250g', unit: 'g', qty: 250, note: '' },
+                        { name: '冬瓜餡', spec: '250g', unit: 'g', qty: 250, note: '' },
+                        { name: '砂糖', spec: '', unit: 'g', qty: 24, note: '' },
+                        { name: '無鹽奶油', spec: '', unit: 'g', qty: 150, note: '' },
+                        { name: '低筋麵粉', spec: '', unit: 'g', qty: 184, note: '' },
+                        { name: '雞蛋', spec: '', unit: 'g', qty: 38, note: '' },
+                        { name: '奶粉', spec: '', unit: 'g', qty: 24, note: '' },
+                        { name: '杏仁粉', spec: '', unit: 'g', qty: 20, note: '' },
+                        { name: '起司粉', spec: '', unit: 'g', qty: 6, note: '' },
+                        { name: '抹茶粉', spec: '', unit: 'g', qty: 10, note: '' },
+                        { name: '金萱茶粉', spec: '', unit: 'g', qty: 10, note: '' },
+                        { name: '百香果', spec: '', unit: '顆', qty: 4, note: '' },
+                    ],
+                    createdAt: '2025/3/16 22:58:00'
+                }
+            ];
+
+            entries = entries.concat(sampleEntries);
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+            alert('✅ 範例資料已匯入！');
+        }
+
+        // ====== 列印日期即時更新 ======
+        document.getElementById('print-date')?.addEventListener('change', renderPrintView);
+        document.getElementById('print-weekday')?.addEventListener('change', renderPrintView);
+
+        // ====== 清除所有資料 ======
+        function clearAllData() {
+            if (!confirm('確定要清除所有資料？此操作無法復原！')) return;
+            entries = [];
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+        }
+    </script>
+</body>
+</html>
