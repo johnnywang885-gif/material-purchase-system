@@ -97,6 +97,70 @@
         .empty-state .icon { font-size: 3em; margin-bottom: 15px; }
 
         .team-tag { display: inline-block; background: #e2f0fb; color: #2c5282; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
+
+        /* ===== 手機版 Responsive ===== */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.15em; }
+            .header p { font-size: 0.8em; }
+
+            .tabs { flex-wrap: wrap; gap: 5px; padding: 10px; }
+            .tab-btn { padding: 8px 14px; font-size: 0.85em; flex: 1 1 auto; min-width: 0; }
+
+            .container { padding: 0 8px; margin: 10px auto; }
+            .card { padding: 15px; border-radius: 8px; }
+            .card h2 { font-size: 1.05em; }
+
+            .form-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .form-row .form-group:last-child { grid-column: 1 / -1; }
+
+            .material-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .material-table thead { display: none; }
+            .material-table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 8px; border-bottom: 2px solid #e2e8f0; }
+            .material-table tbody td { border: none; padding: 4px 0; display: flex; align-items: center; gap: 5px; }
+            .material-table tbody td:nth-child(1) { display: none; }
+            .material-table tbody td:nth-child(2) { grid-column: 1 / -1; }
+            .material-table tbody td:nth-child(7) { grid-column: 1 / -1; justify-content: flex-end; }
+            .material-table tbody td::before { font-size: 0.75em; color: #718096; font-weight: bold; white-space: nowrap; }
+            .material-table tbody td:nth-child(2)::before { content: "材料"; }
+            .material-table tbody td:nth-child(3)::before { content: "規格"; }
+            .material-table tbody td:nth-child(4)::before { content: "單位"; }
+            .material-table tbody td:nth-child(5)::before { content: "數量"; }
+            .material-table tbody td:nth-child(6)::before { content: "備註"; }
+            .material-table input, .material-table select { font-size: 0.9em; padding: 6px; }
+
+            .btn-group { flex-wrap: wrap; gap: 8px; }
+            .btn-group .btn { flex: 1 1 auto; min-width: 0; text-align: center; font-size: 0.85em; padding: 10px 12px; }
+
+            .entry-card { padding: 12px; }
+            .entry-card .entry-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .entry-card .entry-items { font-size: 0.85em; line-height: 1.6; word-break: break-all; }
+
+            .po-header h2 { font-size: 1em; }
+            .po-info { grid-template-columns: 1fr; }
+            .po-info div { border-right: none; border-bottom: 1px solid #1a365d; padding: 6px 12px; }
+            .po-info div:last-child { border-bottom: none; }
+            .po-course { grid-template-columns: 1fr; }
+            .po-course .label { border-right: none; border-bottom: 1px solid #1a365d; }
+            .po-course .value { padding: 8px 12px; }
+
+            .po-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .po-table th, .po-table td { font-size: 0.8em; padding: 6px 4px; white-space: nowrap; }
+            .po-table th:nth-child(6), .po-table td:nth-child(6) { white-space: normal; min-width: 100px; }
+
+            .summary-group-title { font-size: 0.9em; padding: 8px 12px; }
+            .summary-group table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .summary-group table th, .summary-group table td { font-size: 0.8em; padding: 6px 4px; white-space: nowrap; }
+        }
+
+        @media (max-width: 420px) {
+            .header h1 { font-size: 1em; }
+            .tabs { gap: 4px; padding: 8px; }
+            .tab-btn { padding: 7px 8px; font-size: 0.8em; }
+            .form-row { grid-template-columns: 1fr; }
+            .form-row .form-group:last-child { grid-column: auto; }
+            .card { padding: 12px; }
+            .btn { font-size: 0.8em; padding: 9px 10px; }
+        }
     </style>
 </head>
 <body>
