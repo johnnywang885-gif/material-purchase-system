@@ -150,6 +150,10 @@
             .summary-group-title { font-size: 0.9em; padding: 8px 12px; }
             .summary-group table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .summary-group table th, .summary-group table td { font-size: 0.8em; padding: 6px 4px; white-space: nowrap; }
+
+            .quick-import-card textarea { font-size: 0.9em; min-height: 100px; }
+            .quick-import-card p code { font-size: 0.8em; }
+            .quick-import-card div[style*="display:flex"] { flex-direction: column; }
         }
 
         @media (max-width: 420px) {
@@ -161,6 +165,10 @@
             .card { padding: 12px; }
             .btn { font-size: 0.8em; padding: 9px 10px; }
         }
+
+        /* ===== 匯入區專用樣式 ===== */
+        .import-textarea { min-height: 120px; }
+        .quick-import-card { border: 2px dashed #4299e1; background: #ebf8ff; }
     </style>
 </head>
 <body>
@@ -178,6 +186,34 @@
     <div class="container">
         <!-- ====== 各組輸入區 ====== -->
         <div id="tab-input" class="print-section active">
+            <div class="card no-print" style="border: 2px dashed #4299e1; background: #ebf8ff;">
+                <h2 style="border-color: #4299e1;">⚡ 快速匯入（貼上文字自動帶入）</h2>
+                <p style="color:#718096; font-size:0.9em; margin-bottom:12px;">
+                    將圖片中的文字貼到下方，系統會自動辨識組別、日期、產品名稱與材料清單。<br>
+                    支援格式：<code style="background:#fff;padding:2px 6px;border-radius:3px;">第五組</code>
+                    <code style="background:#fff;padding:2px 6px;border-radius:3px;">3/16 (一)</code>
+                    <code style="background:#fff;padding:2px 6px;border-radius:3px;">鳳梨酥</code>
+                    <code style="background:#fff;padding:2px 6px;border-radius:3px;">土鳳梨餡 250g</code>
+                </p>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label>貼上需求文字（從圖片複製或手動輸入）</label>
+                    <textarea id="import-text" rows="8" placeholder="請貼上內容，例如：&#10;第五組&#10;3/16 (一)&#10;&#10;鳳梨酥&#10;土鳳梨餡 250g&#10;冬瓜餡 250g&#10;砂糖 24g&#10;無鹽奶油 150g&#10;低筋麵粉 184g&#10;..." style="width:100%; padding:12px; border:1px solid #cbd5e0; border-radius:6px; font-size:0.95em; font-family:inherit; resize:vertical;"></textarea>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn btn-primary" onclick="parseAndImport()">🔍 解析並帶入表單</button>
+                    <button class="btn btn-success" onclick="parseAndSave()">⚡ 一鍵解析並儲存</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('import-text').value='';">清除文字</button>
+                </div>
+                <div id="import-preview" style="display:none; margin-top:15px; padding:12px; background:white; border-radius:6px; border:1px solid #e2e8f0;">
+                    <strong style="color:#2c5282;">📋 解析結果預覽：</strong>
+                    <div id="import-preview-content" style="margin-top:8px; font-size:0.9em;"></div>
+                    <div style="margin-top:10px; display:flex; gap:8px;">
+                        <button class="btn btn-primary btn-sm" onclick="confirmImport()" style="padding:6px 14px; font-size:0.85em;">✓ 確認帶入表單</button>
+                        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-preview').style.display='none'" style="padding:6px 14px; font-size:0.85em;">取消</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="card no-print">
                 <h2>📋 新增材料需求</h2>
                 <div class="form-row">
@@ -695,6 +731,173 @@
         // ====== 列印日期即時更新 ======
         document.getElementById('print-date')?.addEventListener('change', renderPrintView);
         document.getElementById('print-weekday')?.addEventListener('change', renderPrintView);
+
+        // ====== 快速匯入解析 ======
+        let pendingImport = null;
+
+        function parseAndImport() {
+            const text = document.getElementById('import-text').value.trim();
+            if (!text) { alert('請先貼上需求文字'); return; }
+            pendingImport = parseImportText(text);
+            showImportPreview(pendingImport);
+        }
+
+        function parseAndSave() {
+            const text = document.getElementById('import-text').value.trim();
+            if (!text) { alert('請先貼上需求文字'); return; }
+            pendingImport = parseImportText(text);
+            if (pendingImport.materials.length === 0) {
+                alert('⚠️ 未能解析出任何材料，請檢查文字格式');
+                return;
+            }
+            // 直接儲存
+            entries.push(pendingImport);
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+            document.getElementById('import-text').value = '';
+            alert(`✅ ${pendingImport.team} 的需求已自動儲存！共 ${pendingImport.materials.length} 項材料`);
+            pendingImport = null;
+        }
+
+        function parseImportText(text) {
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            let team = '', dateStr = '', weekday = '', product = '', course = '烘焙实务';
+            const materials = [];
+
+            // 組別辨識
+            const teamMatch = text.match(/第([一二三四五六七八九十\d]+)組/);
+            if (teamMatch) team = teamMatch[0];
+
+            // 日期辨識 (支援多種格式)
+            const dateMatch = text.match(/(\d{1,2})\s*[\/月\-]\s*(\d{1,2})\s*[日號]?\s*(?:[\(（]([一二三四五六日])[\)）])?/);
+            if (dateMatch) {
+                const m = parseInt(dateMatch[1]);
+                const d = parseInt(dateMatch[2]);
+                const now = new Date();
+                let y = now.getFullYear();
+                // 如果月份比目前大，可能是去年或今年
+                if (m > 12) { /* 忽略 */ } else {
+                    dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                }
+                if (dateMatch[3]) weekday = dateMatch[3];
+            }
+
+            // 星期獨立辨識 (若日期行沒帶星期)
+            if (!weekday) {
+                const wdMatch = text.match(/[\(（]([一二三四五六日])[\)）]/);
+                if (wdMatch) weekday = wdMatch[1];
+            }
+
+            // 材料解析：品名 + 數量 + 單位
+            const materialPattern = /^(.+?)\s+(\d+(?:\.\d+)?)\s*(g|kg|個|顆|條|瓶|包|盒|袋|罐|粒|小瓶|小粒|ml|L|ml|克|公斤|片|塊|支|把|束|串|杯|碗|匙|勺|大匙|小匙|根|枝|枚|張|頁|組|套|式|批|份|台|隻|尾|羽|頭|隻|對|雙|件|枝|枝|枝|枝|枝)$/;
+
+            // 更寬鬆的材料解析
+            const materialPatternLoose = /^(.{2,}?)\s+(\d+(?:\.\d+)?)\s*(g|kg|個|顆|條|瓶|包|盒|袋|罐|粒|小瓶|小粒|ml|L|克|公斤|片|塊|支|把|束|串|杯|碗|匙|勺|大匙|小匙|根|枝|枚|張|頁|組|套|式|批|份|台|隻|尾|羽|頭|對|雙|件|兩|錢|斤|箱|籃|桶|盒)?$/;
+
+            let productCandidates = [];
+
+            lines.forEach(line => {
+                // 跳過已辨識的組別行
+                if (/^第[一二三四五六七八九十\d]+組$/.test(line)) return;
+                // 跳過日期行
+                if (/\d{1,2}\s*[\/月\-]\s*\d{1,2}/.test(line) && line.length < 20) return;
+
+                // 嘗試匹配材料
+                let matched = false;
+                // 先嘗試嚴格匹配
+                let m = line.match(materialPattern);
+                if (!m) m = line.match(materialPatternLoose);
+
+                if (m) {
+                    const name = m[1].trim();
+                    const qty = parseFloat(m[2]);
+                    const unit = m[3] || 'g';
+                    // 過濾掉可能是產品名稱的短行（無單位的數字不匹配）
+                    if (name.length >= 2 && qty > 0) {
+                        materials.push({ name, spec: '', unit, qty, note: '' });
+                        matched = true;
+                    }
+                }
+
+                // 如果沒匹配到材料，可能是產品名稱
+                if (!matched && line.length <= 20 && !/^\d/.test(line) && !team && !dateStr) {
+                    // 可能是第一行非數字的短行 → 組別或產品
+                }
+            });
+
+            // 嘗試找產品名稱（材料行之前的非組別/日期行）
+            const firstMaterialIdx = lines.findIndex(l => {
+                const m2 = l.match(materialPatternLoose);
+                return m2 && m2[1].trim().length >= 2 && parseFloat(m2[2]) > 0;
+            });
+            if (firstMaterialIdx > 0) {
+                for (let i = 0; i < firstMaterialIdx; i++) {
+                    const l = lines[i];
+                    if (/^第[一二三四五六七八九十\d]+組$/.test(l)) continue;
+                    if (/\d{1,2}\s*[\/月\-]\s*\d{1,2}/.test(l)) continue;
+                    if (/[\(（][一二三四五六七八九十日][\)）]/.test(l)) continue;
+                    if (l.length >= 2 && l.length <= 20) {
+                        product = l;
+                        break;
+                    }
+                }
+            }
+
+            return {
+                id: Date.now(),
+                date: dateStr || new Date().toISOString().slice(0,10),
+                weekday: weekday || '',
+                class: '餐二甲',
+                team: team || '未分組',
+                course: course,
+                product: product,
+                materials: materials,
+                createdAt: new Date().toLocaleString('zh-TW')
+            };
+        }
+
+        function showImportPreview(data) {
+            const preview = document.getElementById('import-preview');
+            const content = document.getElementById('import-preview-content');
+
+            if (data.materials.length === 0) {
+                content.innerHTML = '<span style="color:#e53e3e;">⚠️ 未能解析出材料，請檢查文字格式</span>';
+                preview.style.display = 'block';
+                return;
+            }
+
+            let html = `
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
+                    <div><strong>組別：</strong>${data.team || '未辨識'}</div>
+                    <div><strong>日期：</strong>${data.date || '未辨識'} ${data.weekday ? '(' + data.weekday + ')' : ''}</div>
+                    <div><strong>產品：</strong>${data.product || '未辨識'}</div>
+                </div>
+                <div style="border-top:1px solid #e2e8f0; padding-top:8px;">
+                    <strong>材料清單 (${data.materials.length} 項)：</strong>
+                    <div style="margin-top:6px; line-height:1.8;">
+                        ${data.materials.map(m => `<span style="display:inline-block; background:#f7fafc; padding:2px 8px; margin:2px 4px; border-radius:4px; border:1px solid #e2e8f0;">${m.name} <strong>${m.qty}${m.unit}</strong></span>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            content.innerHTML = html;
+            preview.style.display = 'block';
+        }
+
+        function confirmImport() {
+            if (!pendingImport) return;
+            if (pendingImport.materials.length === 0) {
+                alert('沒有可匯入的材料');
+                return;
+            }
+            entries.push(pendingImport);
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+            renderSavedEntries();
+            document.getElementById('import-text').value = '';
+            document.getElementById('import-preview').style.display = 'none';
+            alert(`✅ ${pendingImport.team} 的需求已儲存！共 ${pendingImport.materials.length} 項材料`);
+            pendingImport = null;
+        }
 
         // ====== 清除所有資料 ======
         function clearAllData() {
