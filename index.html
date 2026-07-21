@@ -177,6 +177,12 @@
         .sync-dot.offline { background: #fc8181; }
         .sync-dot.syncing { background: #ecc94b; animation: pulse 1s infinite; }
         @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+
+        /* ===== 管理者按鈕 ===== */
+        .admin-btn { padding: 8px 16px; border: 2px solid #e2e8f0; background: white; color: #718096; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: all 0.2s; margin-left: auto; }
+        .admin-btn:hover { background: #edf2f7; border-color: #a0aec0; }
+        .admin-btn.logged-in { background: #48bb78; color: white; border-color: #48bb78; }
+        .tab-btn.locked { opacity: 0.45; pointer-events: none; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -195,8 +201,9 @@
 
     <div class="tabs no-print">
         <button class="tab-btn active" onclick="switchTab('input')">📋 各組輸入</button>
-        <button class="tab-btn" onclick="switchTab('summary')">📊 彙整總表</button>
-        <button class="tab-btn" onclick="switchTab('print')">🖨️ 列印採購單</button>
+        <button class="tab-btn locked" id="tab-btn-summary" onclick="switchTab('summary')">📊 彙整總表</button>
+        <button class="tab-btn locked" id="tab-btn-print" onclick="switchTab('print')">🖨️ 列印採購單</button>
+        <button class="admin-btn" id="admin-btn" onclick="adminLogin()">🔑 管理者</button>
     </div>
 
     <div class="container">
@@ -478,6 +485,44 @@
             localStorage.setItem('materialEntries', JSON.stringify(entries));
         }
 
+        // ====== 管理者密碼驗證 ======
+        let isAdmin = false;
+        const ADMIN_PASSWORD = '0519';
+
+        function adminLogin() {
+            if (isAdmin) {
+                isAdmin = false;
+                unlockAdmin(false);
+                return;
+            }
+            const pwd = prompt('請輸入管理者密碼：');
+            if (pwd === ADMIN_PASSWORD) {
+                isAdmin = true;
+                unlockAdmin(true);
+            } else if (pwd !== null) {
+                alert('密碼錯誤！');
+            }
+        }
+
+        function unlockAdmin(show) {
+            const btnSummary = document.getElementById('tab-btn-summary');
+            const btnPrint = document.getElementById('tab-btn-print');
+            const adminBtn = document.getElementById('admin-btn');
+            if (show) {
+                btnSummary.classList.remove('locked');
+                btnPrint.classList.remove('locked');
+                adminBtn.classList.add('logged-in');
+                adminBtn.textContent = '🔓 管理者';
+            } else {
+                btnSummary.classList.add('locked');
+                btnPrint.classList.add('locked');
+                adminBtn.classList.remove('logged-in');
+                adminBtn.textContent = '🔑 管理者';
+                switchTab('input');
+                document.querySelector('.tab-btn').classList.add('active');
+            }
+        }
+
         // ====== 初始化 ======
         document.addEventListener('DOMContentLoaded', () => {
             addMaterialRow();
@@ -504,6 +549,10 @@
 
         // ====== Tab 切換 ======
         function switchTab(tab) {
+            if ((tab === 'summary' || tab === 'print') && !isAdmin) {
+                alert('⚠️ 請先點選「🔑 管理者」登入後才能使用此功能');
+                return;
+            }
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.print-section').forEach(s => s.classList.remove('active'));
 
