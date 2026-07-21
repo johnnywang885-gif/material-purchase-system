@@ -8,9 +8,16 @@ https://johnnywang885-gif.github.io/material-purchase-system/
 ### 1. 各組輸入
 - 各組填寫日期、星期、班級、組別、課程名稱、產品名稱
 - 新增多筆材料清單（品名、規格、單位、數量、備註）
-- 儲存後自動存入 localStorage，關閉網頁資料不消失
+- 儲存後自動同步至 Firebase 雲端，支援跨裝置即時同步
 
-### 2. 快速匯入（文字自動解析）
+### 2. 跨裝置即時同步
+- 資料儲存於 Firebase Realtime Database
+- 各裝置開啟同一網址即可同步資料
+- 支援 Room ID 分區：`?room=班級名稱`（預設為 `wgcs`）
+- 離線時自動降級至 localStorage，連線後恢復同步
+- 同步狀態指示燈：🟢 已連線 / 🔴 離線 / 🟡 同步中
+
+### 3. 快速匯入（文字自動解析）
 - 將圖片中的需求文字複製貼上，系統自動辨識：
   - 組別（如：第五組）
   - 日期（如：3/16、3月16日）
@@ -34,6 +41,12 @@ https://johnnywang885-gif.github.io/material-purchase-system/
 ### 直接使用
 1. 雙擊 `index.html` 用瀏覽器開啟即可
 2. 無需安裝任何軟體
+3. 資料自動同步至 Firebase 雲端
+
+### 跨裝置同步
+1. 所有裝置開啟同一網址即可共享資料
+2. 使用 `?room=班級名稱` 可建立獨立空間（如：`?room=餐二甲`）
+3. 各 Room 資料互相獨立
 
 ### 部署到 GitHub Pages
 1. 建立 GitHub Repository
@@ -44,9 +57,10 @@ https://johnnywang885-gif.github.io/material-purchase-system/
 ## 技術架構
 
 - **前端**：HTML + CSS + JavaScript（單一檔案）
-- **資料儲存**：localStorage（瀏覽器端儲存）
+- **資料儲存**：Firebase Realtime Database（雲端即時同步）
+- **離線備援**：localStorage（離線時自動降級）
 - **部署**：GitHub Pages
-- **無後端依賴**：純前端應用程式
+- **無後端依賴**：純前端 + Firebase SDK
 
 ## 檔案結構
 
@@ -63,6 +77,7 @@ g、kg、個、顆、條、瓶、包、盒、袋、罐、小瓶、小粒、粒�
 
 ## 注意事項
 
-- 資料僅儲存在使用者瀏覽器的 localStorage 中，各裝置資料獨立
-- 如需跨裝置同步，需自行擴充後端功能
+- 資料同步至 Firebase Realtime Database，支援跨裝置即時同步
+- 離線時資料暫存於 localStorage，連線後自動同步
+- Firebase 免費方案支援同時 100 人連線，足夠班級使用
 - 建議使用 Chrome、Edge 或 Safari 瀏覽器

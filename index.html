@@ -169,12 +169,28 @@
         /* ===== 匯入區專用樣式 ===== */
         .import-textarea { min-height: 120px; }
         .quick-import-card { border: 2px dashed #4299e1; background: #ebf8ff; }
+
+        /* ===== 同步狀態指示 ===== */
+        .sync-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 15px; font-size: 0.82em; color: #718096; background: #f7fafc; border-bottom: 1px solid #e2e8f0; }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .sync-dot.online { background: #48bb78; box-shadow: 0 0 6px rgba(72,187,120,0.6); }
+        .sync-dot.offline { background: #fc8181; }
+        .sync-dot.syncing { background: #ecc94b; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
     </style>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="header">
         <h1>葳格高級中學實習課程材料採購統整系統</h1>
         <p>各組輸入需求 → 自動彙整採購單</p>
+    </div>
+
+    <div class="sync-bar no-print">
+        <span class="sync-dot online" id="sync-dot"></span>
+        <span id="sync-status">正在連線...</span>
+        <span id="room-id" style="margin-left:10px; font-weight:bold; color:#2c5282;"></span>
     </div>
 
     <div class="tabs no-print">
@@ -194,6 +210,11 @@
                     <code style="background:#fff;padding:2px 6px;border-radius:3px;">3/16 (一)</code>
                     <code style="background:#fff;padding:2px 6px;border-radius:3px;">鳳梨酥</code>
                     <code style="background:#fff;padding:2px 6px;border-radius:3px;">土鳳梨餡 250g</code>
+                </p>
+                <p style="color:#e53e3e; font-size:0.85em; margin-top:8px; font-weight:bold;">
+                    ⚠️ 注意：材料名稱與數量之間必須有空格，系統才能正確辨識。<br>
+                    正確：<code style="background:#fff;padding:2px 6px;border-radius:3px;">土鳳梨餡 250g</code>
+                    錯誤：<code style="background:#fff;padding:2px 6px;border-radius:3px;text-decoration:line-through;">土鳳梨餡250g</code>
                 </p>
                 <div class="form-group" style="margin-bottom:12px;">
                     <label>貼上需求文字（從圖片複製或手動輸入）</label>
@@ -369,16 +390,101 @@
     </div>
 
     <script>
-        let entries = JSON.parse(localStorage.getItem('materialEntries') || '[]');
+        // ====== Firebase 初始化 ======
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZOTYzqjourZYxHYqaZgqY7REHUj9KsKM",
+            authDomain: "wgcs-purchase.firebaseapp.com",
+            databaseURL: "https://wgcs-purchase-default-rtdb.asia-east1.firebasedatabase.app",
+            projectId: "wgcs-purchase",
+            storageBucket: "wgcs-purchase.firebasestorage.app",
+            messagingSenderId: "487720399554",
+            appId: "1:487720399554:web:cce1dc4c0b708adcccc15b"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Room ID：從 URL 參數取得，預設為 "wgcs"
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room') || 'wgcs';
+        const dbRef = db.ref('rooms/' + roomId + '/entries');
+
+        // 顯示 Room ID
+        document.getElementById('room-id').textContent = '🏠 ' + roomId;
+
+        // 資料（從 Firebase 同步）
+        let entries = [];
         let materialCounter = 0;
+        let isSynced = false;
+
+        // ====== 同步狀態 UI ======
+        function setSyncStatus(status) {
+            const dot = document.getElementById('sync-dot');
+            const text = document.getElementById('sync-status');
+            dot.className = 'sync-dot ' + status;
+            if (status === 'online') text.textContent = '已連線同步';
+            else if (status === 'offline') text.textContent = '離線模式（資料僅存本機）';
+            else if (status === 'syncing') text.textContent = '同步中...';
+        }
+
+        // ====== Firebase 即時監聽 ======
+        function initFirebaseSync() {
+            setSyncStatus('syncing');
+
+            // 連線狀態監聽
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === true) {
+                    setSyncStatus('online');
+                } else {
+                    setSyncStatus('offline');
+                }
+            });
+
+            // 即時同步資料
+            dbRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                entries = data ? Object.values(data) : [];
+                isSynced = true;
+                renderSavedEntries();
+                setSyncStatus('online');
+            }, (error) => {
+                console.error('Firebase 讀取失敗:', error);
+                setSyncStatus('offline');
+                // 降級：嘗試從 localStorage 讀取
+                entries = JSON.parse(localStorage.getItem('materialEntries') || '[]');
+                renderSavedEntries();
+            });
+        }
+
+        // ====== Firebase 寫入輔助 ======
+        function saveToFirebase(callback) {
+            setSyncStatus('syncing');
+            // 以 entries 陣列重建為物件（以 id 為 key）
+            const dataObj = {};
+            entries.forEach(e => { dataObj[e.id] = e; });
+            dbRef.set(dataObj).then(() => {
+                setSyncStatus('online');
+                if (callback) callback();
+            }).catch(err => {
+                console.error('Firebase 寫入失敗:', err);
+                setSyncStatus('offline');
+                // 降級：寫入 localStorage
+                localStorage.setItem('materialEntries', JSON.stringify(entries));
+                if (callback) callback();
+            });
+        }
+
+        // ====== 降級備援：localStorage ======
+        function fallbackToLocalStorage() {
+            localStorage.setItem('materialEntries', JSON.stringify(entries));
+        }
 
         // ====== 初始化 ======
         document.addEventListener('DOMContentLoaded', () => {
             addMaterialRow();
             addMaterialRow();
             addMaterialRow();
-            renderSavedEntries();
             setDefaultDate();
+            initFirebaseSync();
         });
 
         function setDefaultDate() {
@@ -489,10 +595,10 @@
             };
 
             entries.push(entry);
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
-            clearForm();
-            alert(`✅ ${team} 的需求已儲存！`);
+            saveToFirebase(() => {
+                clearForm();
+                alert(`✅ ${team} 的需求已儲存！`);
+            });
         }
 
         function clearForm() {
@@ -509,8 +615,7 @@
         function deleteEntry(id) {
             if (!confirm('確定要刪除此筆資料？')) return;
             entries = entries.filter(e => e.id !== id);
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
+            saveToFirebase();
         }
 
         function renderSavedEntries() {
@@ -723,9 +828,9 @@
             ];
 
             entries = entries.concat(sampleEntries);
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
-            alert('✅ 範例資料已匯入！');
+            saveToFirebase(() => {
+                alert('✅ 範例資料已匯入！');
+            });
         }
 
         // ====== 列印日期即時更新 ======
@@ -752,16 +857,16 @@
             }
             // 直接儲存
             entries.push(pendingImport);
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
-            document.getElementById('import-text').value = '';
-            alert(`✅ ${pendingImport.team} 的需求已自動儲存！共 ${pendingImport.materials.length} 項材料`);
-            pendingImport = null;
+            saveToFirebase(() => {
+                document.getElementById('import-text').value = '';
+                alert(`✅ ${pendingImport.team} 的需求已自動儲存！共 ${pendingImport.materials.length} 項材料`);
+                pendingImport = null;
+            });
         }
 
         function parseImportText(text) {
             const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-            let team = '', dateStr = '', weekday = '', product = '', course = '烘焙实务';
+            let team = '', dateStr = '', weekday = '', product = '', course = '烘焙實務';
             const materials = [];
 
             // 組別辨識
@@ -891,20 +996,19 @@
                 return;
             }
             entries.push(pendingImport);
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
-            document.getElementById('import-text').value = '';
-            document.getElementById('import-preview').style.display = 'none';
-            alert(`✅ ${pendingImport.team} 的需求已儲存！共 ${pendingImport.materials.length} 項材料`);
-            pendingImport = null;
+            saveToFirebase(() => {
+                document.getElementById('import-text').value = '';
+                document.getElementById('import-preview').style.display = 'none';
+                alert(`✅ ${pendingImport.team} 的需求已儲存！共 ${pendingImport.materials.length} 項材料`);
+                pendingImport = null;
+            });
         }
 
         // ====== 清除所有資料 ======
         function clearAllData() {
             if (!confirm('確定要清除所有資料？此操作無法復原！')) return;
             entries = [];
-            localStorage.setItem('materialEntries', JSON.stringify(entries));
-            renderSavedEntries();
+            saveToFirebase();
         }
     </script>
 </body>
